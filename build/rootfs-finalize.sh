@@ -4,7 +4,7 @@
 #
 # Responsibilities:
 #   1. copy the rootfs/ overlay (systemd units, helpers) into place
-#   2. configure identity (hostname, root password podroid), dropbear
+#   2. configure identity (hostname, root password 123), dropbear
 #   3. enable units via OFFLINE SYMLINKS (systemctl enable is not reliable in a
 #      build chroot; upstream build-rootfs.sh does the same for openrc runlevels)
 #   4. mask units that would fight over the ttys / are VM-irrelevant
@@ -28,7 +28,8 @@ fi
 printf 'podroid\n' > /etc/hostname
 printf '127.0.0.1\tlocalhost podroid\n' > /etc/hosts
 
-# Root password = "podroid" (guest SSH contract: ssh root@<phone> -p 9922).
+# Root password = "123" (guest SSH contract: ssh root@<phone> -p 9922).
+# Changed from upstream's "podroid" at the user's request (2026-10-07).
 # chpasswd works in the arm64 chroot (both build paths run arm64 postinst);
 # fall back to a pre-generated sha512 hash if it is provided.
 if [ -n "${PODROID_ROOT_SHA512:-}" ]; then
@@ -37,7 +38,7 @@ if [ -n "${PODROID_ROOT_SHA512:-}" ]; then
     chmod 640 /etc/shadow
     log "root shadow hash written from PODROID_ROOT_SHA512"
 else
-    printf 'root:podroid\n' | chpasswd
+    printf 'root:123\n' | chpasswd
     log "root password set via chpasswd"
 fi
 

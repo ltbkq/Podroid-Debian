@@ -70,7 +70,8 @@ response, base64 payload (`FWD-ADD`, `NOTIFY`, `STATS containers=N`, ...).
 
 ## 5. Services the Android side assumes exist
 
-- **dropbear on guest :22**, root password `podroid` (implicit host forward 9922->22)
+- **dropbear on guest :22**, root password `123` (implicit host forward 9922->22;
+  upstream Alpine used `podroid` — changed at the user's request 2026-10-07)
 - **Xvnc :0 on 5900** (no auth, `-AcceptSetDesktopSize`) + **pulseaudio TCP 4713**
   (raw S16LE, null sink `podroid_sink`) — loopback-only forwards from Android
 - container daemons: docker, podman (rootful), lxc + `lxcbr0` NAT
