@@ -51,10 +51,18 @@ path-include=/usr/share/locale/locales.alias
 EOF
 printf '#!/bin/sh\nexit 101\n' > "$WORK/usr/sbin/policy-rc.d"
 chmod +x "$WORK/usr/sbin/policy-rc.d"
-grep -vE '^\s*(#|$)' "$HERE/packages.list" > "$WORK/tmp/packages.list"
-[ "${1:-}" = "--desktop" ] && grep -vE '^\s*(#|$)' "$HERE/packages-desktop.list" >> "$WORK/tmp/packages.list"
-chroot "$WORK" apt-get update
-chroot "$WORK" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+# Strip comments (whole-line AND trailing) then drop blanks — apt gets words only.
+grep -vE '^[[:space:]]*(#|$)' "$HERE/packages.list" \
+    | sed 's/#.*$//' | sed -e 's/[[:space:]]*$//' -e '/^$/d' > "$WORK/tmp/packages.list"
+[ "${1:-}" = "--desktop" ] && grep -vE '^[[:space:]]*(#|$)' "$HERE/packages-desktop.list" \
+    | sed 's/#.*$//' | sed -e 's/[[:space:]]*$//' -e '/^$/d' >> "$WORK/tmp/packages.list"
+# Retries: flaky proxies return intermittent 502s on bulk downloads (seen on
+# deb.debian.org via a local HTTP proxy — 17/283 debs failed without this).
+APT_OPTS="-o Acquire::Retries=20 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+# shellcheck disable=SC2086
+chroot "$WORK" env DEBIAN_FRONTEND=noninteractive apt-get $APT_OPTS update
+# shellcheck disable=SC2086
+chroot "$WORK" env DEBIAN_FRONTEND=noninteractive apt-get $APT_OPTS install -y --no-install-recommends \
     -o Dpkg::Options::=--force-confold $(cat "$WORK/tmp/packages.list")
 rm -f "$WORK/tmp/packages.list"
 

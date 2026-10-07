@@ -29,10 +29,13 @@ RUN printf 'APT::Install-Recommends "false";\nAPT::Install-Suggests "false";\ndp
         > /etc/apt/apt.conf.d/00podroid-build
 
 # Package set (same concerns as upstream build-rootfs/build-rootfs.sh).
+# Comments stripped: whole-line AND trailing (apt would otherwise receive them
+# as words via shell expansion).
 COPY build/packages.list /tmp/packages.list
-RUN apt-get update \
- && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        $(grep -vE '^\s*(#|$)' /tmp/packages.list) \
+RUN apt-get -o Acquire::Retries=20 update \
+ && PKGS=$(grep -vE '^[[:space:]]*(#|$)' /tmp/packages.list | sed 's/#.*$//' | tr '\n' ' ') \
+ && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=20 \
+        install -y --no-install-recommends $PKGS \
  && rm -f /tmp/packages.list
 
 # Stubs so package postinst never tries to start daemons inside the build.

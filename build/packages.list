@@ -27,9 +27,8 @@ libcap2-bin              # setcap for newuidmap/newgidmap
 # --- containers (mirrors upstream Alpine set) ---
 podman
 docker.io
-docker-compose-v2
+docker-compose            # trixie has no docker-compose-v2; v1 CLI still works
 lxc
-lxc-utils
 crun
 netavark
 aardvark-dns
