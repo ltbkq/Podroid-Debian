@@ -31,6 +31,15 @@ RUN printf 'APT::Install-Recommends "false";\nAPT::Install-Suggests "false";\ndp
 # Package set (same concerns as upstream build-rootfs/build-rootfs.sh).
 # Comments stripped: whole-line AND trailing (apt would otherwise receive them
 # as words via shell expansion).
+# Mirror: switch the debian:trixie-slim default (deb.debian.org) to a domestic
+# mirror for hosts in China — deb822 format since trixie.
+RUN if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+            /etc/apt/sources.list.d/debian.sources; \
+    elif [ -f /etc/apt/sources.list ]; then \
+        sed -i 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+            /etc/apt/sources.list; \
+    fi
 COPY build/packages.list /tmp/packages.list
 RUN apt-get -o Acquire::Retries=20 update \
  && PKGS=$(grep -vE '^[[:space:]]*(#|$)' /tmp/packages.list | sed 's/#.*$//' | tr '\n' ' ') \

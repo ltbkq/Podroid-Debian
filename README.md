@@ -58,6 +58,24 @@ native/         pointer to the upstream C sources (hostd, vsock-agent) — not v
 ./tools/boot-test.sh        # adb smoke test: poll console.log for "Ready!"
 ```
 
+## Default credentials
+
+The guest root account (SSH on forwarded port 9922, and the in-app console
+login) uses:
+
+| user | password |
+|------|----------|
+| `root` | **`123`** |
+
+```sh
+adb forward tcp:9922 tcp:9922
+ssh root@localhost -p 9922        # password: 123
+```
+
+> Upstream Alpine rootfs used `podroid`; this project changed it to `123`
+> (2026-10-07) at the maintainer's request. The value is set in
+> `build/rootfs-finalize.sh` when the squashfs is assembled.
+
 ## Hard requirements
 
 - The VM keeps Podroid's **custom kernel** (everything builtin, no `/lib/modules` needed —

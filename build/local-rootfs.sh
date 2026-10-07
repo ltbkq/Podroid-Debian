@@ -6,7 +6,8 @@ set -eu
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJ=$(dirname "$HERE")
-MIRROR=${DEBIAN_MIRROR:-http://deb.debian.org/debian}
+# Domestic mirror by default (China); override with DEBIAN_MIRROR=...
+MIRROR=${DEBIAN_MIRROR:-http://mirrors.aliyun.com/debian}
 SUITE=${DEBIAN_SUITE:-trixie}
 SYSVER=${SYSTEM_VERSION:-33}
 WORK=$PROJ/work/rootfs
