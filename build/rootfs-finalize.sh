@@ -114,6 +114,15 @@ for u in systemd-networkd.service systemd-resolved.service getty@tty1.service \
 done
 log "masked networkd/resolved/tty1/serial-getty units"
 
+# The Debian dnsmasq package auto-enables a STANDALONE dnsmasq.service that
+# grabs *:53; lxc-net then fails with "failed to create listening socket for
+# 10.0.3.1: Address already in use". lxc-net runs its own dnsmasq instance, so
+# drop the package service's wants-symlink (offline-safe systemctl disable).
+if [ -L "$WANTS/dnsmasq.service" ] || [ -e "$WANTS/dnsmasq.service" ]; then
+    rm -f "$WANTS/dnsmasq.service"
+    log "disabled dnsmasq.service (lxc-net owns dnsmasq)"
+fi
+
 # default target
 mkdir -p /etc/systemd/system
 ln -sf /lib/systemd/system/multi-user.target /etc/systemd/system/default.target
