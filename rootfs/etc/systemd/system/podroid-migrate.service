@@ -1,0 +1,16 @@
+[Unit]
+Description=Podroid system migrations (versioned upgrade scripts, run once)
+# init-podroid already mounted /mnt/persist before switch_root.
+After=local-fs.target
+Before=podroid-bootstrap.service
+RequiresMountsFor=/mnt/persist
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/podroid/podroid-migrate
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

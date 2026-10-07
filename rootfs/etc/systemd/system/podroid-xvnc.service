@@ -1,0 +1,16 @@
+[Unit]
+Description=Podroid X11 server (Xvnc :0, rfbport 5900) for the in-app viewer
+# Upstream: need bootstrap, after network (not strict), before ready.
+After=podroid-bootstrap.service podroid-network.service
+Before=podroid-ready.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/podroid/podroid-xvnc
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

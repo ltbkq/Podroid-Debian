@@ -1,0 +1,18 @@
+[Unit]
+Description=Podroid VM system bootstrap (cgroups, mounts, zram, container binds)
+# Ported openrc podroid-bootstrap: need localmount, before podroid-network.
+After=local-fs.target podroid-migrate.service
+RequiresMountsFor=/mnt/persist
+Before=podroid-network.service podroid-xvnc.service podroid-hostd.service \
+       podroid-resize.service podroid-vsock.service podroid-downloads.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/podroid/podroid-bootstrap
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

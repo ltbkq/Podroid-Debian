@@ -1,0 +1,15 @@
+[Unit]
+Description=Podroid terminal resize daemon (hvc1 RESIZE lines -> stty hvc0)
+# Ported openrc podroid-resize: need bootstrap, before ready. The binary is a
+# foreground `while read` loop (openrc ran it via start-stop-daemon --background).
+After=podroid-bootstrap.service
+Before=podroid-ready.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/podroid-resize
+Restart=no
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

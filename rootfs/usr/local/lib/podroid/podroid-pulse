@@ -1,0 +1,32 @@
+#!/bin/sh
+# PulseAudio launcher for podroid-pulse.service (foreground; systemd tracks
+# the pid). Port of the pulseaudio half of upstream openrc podroid-x11.
+#
+# Contract (Android AudioStreamer): raw S16LE PCM over TCP 4713 from the
+# null sink's monitor, 44100 stereo. --daemonize=no + explicit runtime dirs
+# so it runs as root without pulse's "system mode is risky" refusal.
+set -eu
+
+PA_RUNTIME=/run/podroid-pulse
+mkdir -p "$PA_RUNTIME"
+chmod 755 "$PA_RUNTIME"
+
+PA_BIN=""
+for c in /usr/bin/pulseaudio; do
+    [ -x "$c" ] && PA_BIN=$c && break
+done
+if [ -z "$PA_BIN" ]; then
+    echo "podroid-pulse: pulseaudio binary not found" >&2
+    exit 1
+fi
+
+export PULSE_RUNTIME_PATH="$PA_RUNTIME"
+export XDG_RUNTIME_DIR="$PA_RUNTIME"
+
+exec "$PA_BIN" \
+    --daemonize=no \
+    --disallow-exit \
+    --exit-idle-time=-1 \
+    --load="module-null-sink sink_name=podroid_sink rate=44100 channels=2 format=s16le" \
+    --load="module-simple-protocol-tcp source=podroid_sink.monitor record=true rate=44100 format=s16le channels=2 listen=0.0.0.0 port=4713" \
+    --load="module-native-protocol-unix"

@@ -1,0 +1,22 @@
+[Unit]
+Description=Podroid ready marker (consumed by the Android BootStageDetector)
+# Upstream openrc had `after podroid-network; after dropbear *` — i.e. run once
+# the whole default runlevel is up. After= is ordering only (missing or failed
+# units do not block), matching openrc's tolerant behavior.
+After=podroid-bootstrap.service podroid-network.service podroid-resize.service \
+       podroid-hostd.service podroid-vsock.service podroid-downloads.service \
+       podroid-xvnc.service podroid-pulse.service \
+       dropbear.service docker.service lxc-net.service dnsmasq.service \
+       dbus.service podroid-getty@hvc0.service podroid-getty@ttyS0.service
+# Key services we genuinely want started (not merely ordered against).
+Wants=podroid-network.service podroid-hostd.service dropbear.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/podroid/podroid-ready
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,51 @@
+#!/bin/sh
+# Podroid system migrations — port of upstream openrc podroid-migrate.
+# Runs once per versioned script; marker atomically advanced, failures retry
+# on next boot (logic verbatim from build-rootfs/files/etc/init.d/podroid-migrate).
+set -u
+
+SYSVER_FILE="/etc/podroid/system-version"
+APPLIED_FILE="/mnt/persist/.podroid/applied-version"
+MIGRATIONS_DIR="/etc/podroid/migrations"
+CONSOLE=/dev/console
+
+mkdir -p /mnt/persist/.podroid
+
+current=$(cat "$SYSVER_FILE" 2>/dev/null || echo 0)
+applied=$(cat "$APPLIED_FILE" 2>/dev/null || echo "")
+
+# Fresh install (no marker): seed the marker, run nothing — the squashfs
+# already ships the current state.
+if [ -z "$applied" ]; then
+    printf '%s\n' "$current" > "$APPLIED_FILE.tmp" && mv "$APPLIED_FILE.tmp" "$APPLIED_FILE"
+    echo "podroid-migrate: fresh install, seeded marker to $current"
+    exit 0
+fi
+
+# Fast path / downgrade: nothing to do.
+if [ "$current" -le "$applied" ] 2>/dev/null; then
+    echo "podroid-migrate: nothing to do (applied=$applied current=$current)"
+    exit 0
+fi
+
+# Run each migrations/<v>.sh with applied < v <= current, ascending. Scripts
+# MUST be idempotent. Stop at the first failure so it re-runs next boot.
+last_ok="$applied"
+failed=0
+for base in $(ls "$MIGRATIONS_DIR" 2>/dev/null | sed -n 's/\.sh$//p' | sort -n); do
+    case "$base" in *[!0-9]*) continue ;; esac   # digits only
+    if [ "$base" -gt "$applied" ] 2>/dev/null && [ "$base" -le "$current" ] 2>/dev/null; then
+        echo "podroid-migrate: applying $base" > "$CONSOLE"
+        if sh "$MIGRATIONS_DIR/$base.sh" > "$CONSOLE" 2>&1; then
+            last_ok="$base"
+        else
+            echo "podroid-migrate: $base failed, stopping (will retry next boot)" > "$CONSOLE"
+            failed=1
+            break
+        fi
+    fi
+done
+
+if [ "$failed" -eq 0 ]; then marker="$current"; else marker="$last_ok"; fi
+printf '%s\n' "$marker" > "$APPLIED_FILE.tmp" && mv "$APPLIED_FILE.tmp" "$APPLIED_FILE"
+exit 0

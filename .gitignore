@@ -1,0 +1,9 @@
+# build outputs
+out/
+work/
+native/staged/
+*.squashfs
+
+# editor/os noise
+*.swp
+.DS_Store

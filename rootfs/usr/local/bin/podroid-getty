@@ -1,0 +1,45 @@
+#!/bin/sh
+# Wrapper for the getty units (podroid-getty@hvc0 / @ttyS0) — Debian port of
+# upstream /etc/inittab's per-tty respawn lines. Two instances are declared
+# because the backend isn't known at squashfs-build time; this script picks
+# the right one at boot via the kernel cmdline marker:
+#
+#   podroid.tty=hvc0   QEMU/TCG and AVF backends (virtio-console)
+#
+# If the marker is absent, default to hvc0 (QEMU's historical setup so legacy
+# boots without the marker still get a login).
+#
+# Differences from the Alpine version: Debian provides agetty (util-linux)
+# instead of busybox getty, so the getty path is auto-detected. Both accept
+# the same `-L -l LOGIN baud tty term` invocation.
+TTY="$1"
+WANT=$(sed -n 's/.*podroid\.tty=\([a-zA-Z0-9]*\).*/\1/p' /proc/cmdline)
+[ -z "$WANT" ] && WANT=hvc0
+
+if [ "$TTY" != "$WANT" ]; then
+    # Wrong tty for this backend. Sleep instead of exiting so systemd's
+    # Restart=always doesn't spin (mirrors upstream's sleep-park).
+    exec sleep 2147483647
+fi
+
+# find a getty implementation (Debian: agetty from util-linux)
+GETTY=""
+for c in getty agetty /sbin/getty /usr/sbin/agetty /sbin/agetty /bin/busybox; do
+    if command -v "$c" >/dev/null 2>&1; then
+        if [ "$c" = /bin/busybox ]; then GETTY="/bin/busybox getty"; else GETTY=$c; fi
+        break
+    fi
+done
+if [ -z "$GETTY" ]; then
+    echo "podroid-getty: no getty binary found" >&2
+    exec sleep 2147483647
+fi
+
+# Clear the tty before the login prompt. On AVF the kernel console is this
+# same hvc0, so boot-stage markers written to /dev/console land above the
+# banner; the Android detector already consumed them, so wiping the visible
+# screen + scrollback just gives a clean login (upstream behavior).
+printf '\033[3J\033[2J\033[H' > "/dev/$TTY" 2>/dev/null || true
+
+# shellcheck disable=SC2086
+exec $GETTY -L -l /usr/local/bin/podroid-login 115200 "$TTY" xterm-256color

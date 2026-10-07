@@ -1,0 +1,18 @@
+[Unit]
+Description=Podroid getty on %I
+# Mirrors upstream inittab: `tty::respawn:/usr/local/bin/podroid-getty <tty>`.
+# The wrapper reads podroid.tty= from /proc/cmdline and parks (sleeps forever)
+# on the wrong tty, keeping the squashfs backend-agnostic (QEMU=hvc0, AVF=hvc0).
+After=podroid-bootstrap.service systemd-user-sessions.service
+Conflicts=shutdown.target
+
+[Service]
+Type=simple
+ExecStart=-/usr/local/bin/podroid-getty %I
+Restart=always
+RestartSec=0
+# The wrapper's wrong-tty path sleeps for years; no rate limit applies to it.
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=Podroid VM networking (10.0.2.15 via SLIRP / DHCP on AVF)
+# Ported openrc podroid-network: need podroid-bootstrap, before ready/dropbear,
+# provide net.
+After=podroid-bootstrap.service
+Before=podroid-ready.service network-online.target podroid-downloads.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/podroid/podroid-network
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=60
+# A total failure must not brick boot: podroid-ready still runs (its After=
+# is ordering, not Requires), but the journal/console shows the error.
+FailureAction=none
+
+[Install]
+WantedBy=multi-user.target

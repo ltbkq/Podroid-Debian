@@ -1,0 +1,15 @@
+# Optional desktop profile — experimental (Phase 7).
+# Install with: build-rootfs.sh --desktop
+#
+# These are NOT part of the boot contract; they only provide a GUI session you
+# start manually from the terminal (or via a future podroid-x11 session hook):
+#
+#   apk-equivalent:  apt install xfce4 xfce4-terminal
+#   in the VM shell:  startxfce4   (connects to the running Xvnc :0)
+#
+# Keep it light: the VM defaults to 4 GB RAM under TCG emulation (5-20x slower
+# than KVM per upstream docs). Cinnamon/LXQt are alternatives; Mint itself is
+# not available (no ARM images).
+xfce4
+xfce4-terminal
+x11-utils

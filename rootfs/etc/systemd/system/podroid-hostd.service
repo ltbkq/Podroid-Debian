@@ -1,0 +1,16 @@
+[Unit]
+Description=Podroid guest -> Android host bridge (notify/forward/stats)
+# Ported openrc podroid-hostd: need bootstrap, before ready. Binary is a
+# foreground poll() loop on /run/podroid-host.sock + hvc2/vsock 9101.
+After=podroid-bootstrap.service podroid-network.service
+Before=podroid-ready.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/podroid-hostd
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

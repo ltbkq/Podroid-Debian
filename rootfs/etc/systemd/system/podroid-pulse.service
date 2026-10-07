@@ -1,0 +1,15 @@
+[Unit]
+Description=Podroid PulseAudio (null sink + raw S16LE TCP 4713 for the viewer)
+After=podroid-bootstrap.service
+Before=podroid-ready.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/podroid/podroid-pulse
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

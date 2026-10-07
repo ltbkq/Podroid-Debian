@@ -1,0 +1,23 @@
+#!/bin/sh
+# Podroid ready marker — port of upstream openrc podroid-ready.
+# Runs last (systemd: podroid-ready.service After= the whole service set).
+# Emits the three console markers BootStageDetector consumes; "Ready!" flips
+# VmState to Running on the Android side.
+set -u
+CONSOLE=/dev/console
+
+# OOM-protect Podroid's infrastructure processes so hungry user apps get
+# reaped first (-1000 = fully immune). Match by argv[0] basename to catch
+# all variants (forked dropbear per session, agent listener children).
+# Debian process names are identical to Alpine's for this set; dnsmasq is
+# started by lxc-net here (same name).
+for _name in dropbear Xvnc pulseaudio podroid-vsock-agent dnsmasq; do
+    for _pid in $(pgrep -x "$_name" 2>/dev/null); do
+        echo -1000 > "/proc/$_pid/oom_score_adj" 2>/dev/null
+    done
+done
+
+echo "Starting SSH..." > "$CONSOLE"
+echo "Almost ready..." > "$CONSOLE"
+echo "Ready!"         > "$CONSOLE"
+exit 0

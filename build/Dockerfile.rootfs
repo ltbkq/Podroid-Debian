@@ -1,0 +1,65 @@
+# build/Dockerfile.rootfs — arm64 Debian rootfs -> squashfs
+#
+# Requires: docker buildx + qemu-user-static binfmt for arm64
+#   docker run --privileged --rm tonistiigi/binfmt --install arm64
+#
+# Build via build/build-rootfs.sh (docker path). Output:
+#   out/debian-rootfs.squashfs
+#
+#   docker buildx build -f build/Dockerfile.rootfs --platform linux/arm64 \
+#       --build-arg SYSTEM_VERSION=33 --output type=local,dest=out .
+
+FROM --platform=linux/arm64 debian:trixie-slim AS rootfs
+
+ARG SYSTEM_VERSION=33
+ENV SYSTEM_VERSION=${SYSTEM_VERSION}
+
+# Never ship man/doc/locale (upstream Alpine strips these too — saves space in
+# storage.img). Must be in place BEFORE the package install below.
+RUN mkdir -p /etc/dpkg/dpkg.cfg.d && cat > /etc/dpkg/dpkg.cfg.d/01-nodoc <<'EOF'
+path-exclude=/usr/share/man/*
+path-exclude=/usr/share/doc/*
+path-exclude=/usr/share/info/*
+path-exclude=/usr/share/locale/*
+path-include=/usr/share/locale/locales.alias
+EOF
+
+# Keep apt quiet and non-interactive in the build.
+RUN printf 'APT::Install-Recommends "false";\nAPT::Install-Suggests "false";\ndpkg::options { "--force-confold"; };\n' \
+        > /etc/apt/apt.conf.d/00podroid-build
+
+# Package set (same concerns as upstream build-rootfs/build-rootfs.sh).
+COPY build/packages.list /tmp/packages.list
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        $(grep -vE '^\s*(#|$)' /tmp/packages.list) \
+ && rm -f /tmp/packages.list
+
+# Stubs so package postinst never tries to start daemons inside the build.
+# (debian:trixie-slim already ships /usr/sbin/policy-rc.d? ensure ours wins.)
+RUN printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d && chmod +x /usr/sbin/policy-rc.d
+
+# Native guest C binaries (hostd, vsock-agent, overlay-normalize) — built
+# from the sibling Podroid checkout by build-rootfs.sh and staged under native/.
+COPY native/staged /opt/podroid-native
+RUN install -m 0755 /opt/podroid-native/podroid-hostd          /usr/local/bin/ \
+ && install -m 0755 /opt/podroid-native/podroid-vsock-agent    /usr/local/bin/ \
+ && install -m 0755 /opt/podroid-native/podroid-overlay-normalize /usr/local/bin/ \
+ && rm -rf /opt/podroid-native
+
+# Overlay (units, ported scripts, helpers) + finalize.
+COPY rootfs /opt/podroid-rootfs-overlay
+COPY build/rootfs-finalize.sh /opt/rootfs-finalize.sh
+RUN chmod +x /opt/rootfs-finalize.sh && SYSTEM_VERSION=$SYSTEM_VERSION /opt/rootfs-finalize.sh \
+ && rm -f /opt/rootfs-finalize.sh
+
+# ---- squashfs ------------------------------------------------------------
+FROM rootfs AS packed
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends squashfs-tools \
+ && mksquashfs / /debian-rootfs.squashfs -comp zstd -Xcompression-level 19 -all-root -noappend \
+      -e proc/\* sys/\* dev/\* run/\* tmp/\* mnt/\* \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+# NOTE: no -no-xattrs — security.capability (newuidmap/newgidmap) must survive.
+
+FROM scratch AS export
+COPY --from=packed /debian-rootfs.squashfs /debian-rootfs.squashfs

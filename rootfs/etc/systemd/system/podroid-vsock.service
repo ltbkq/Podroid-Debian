@@ -1,0 +1,17 @@
+[Unit]
+Description=Podroid vsock control + port forwarding agent (AVF only)
+# openrc version used `mark_service_inactive` when not an AVF boot; systemd's
+# equivalent is a kernel cmdline condition (exact token match).
+ConditionKernelCommandLine=podroid.backend=avf
+After=podroid-bootstrap.service
+Before=podroid-ready.service podroid-downloads.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/podroid-vsock-agent
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

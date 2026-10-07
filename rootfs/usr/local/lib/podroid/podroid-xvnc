@@ -1,0 +1,37 @@
+#!/bin/sh
+# Xvnc launcher for podroid-xvnc.service (foreground; systemd tracks the pid).
+# Port of the Xvnc half of upstream openrc podroid-x11:
+#   - DPI from cmdline podroid.x11.dpi= (digit-only capture; /proc/cmdline
+#     ends in \n and would poison the last token)
+#   - stale lock cleanup (/tmp lives on the persistent overlay!)
+#   - flags unchanged: :0 1280x720 depth24, no auth, rfbport 5900, AlwaysShared,
+#     AcceptSetDesktopSize (the Android X11 viewer contract)
+set -eu
+
+XVNC_BIN=""
+for c in /usr/bin/Xvnc /usr/bin/xvnc /usr/bin/tigervncserver; do
+    [ -x "$c" ] && XVNC_BIN=$c && break
+done
+if [ -z "$XVNC_BIN" ]; then
+    echo "podroid-xvnc: no Xvnc binary found (tigervnc-standalone-server?)" >&2
+    exit 1
+fi
+
+DPI=$(sed -n 's/.*podroid\.x11\.dpi=\([0-9]*\).*/\1/p' /proc/cmdline 2>/dev/null)
+[ -z "$DPI" ] && DPI=96
+
+# /tmp is persistent: a stale lock blocks Xvnc with "already active for
+# display 0". Wipe both the lock and the socket every boot (upstream does
+# this in the openrc start(); doing it here means a service restart also
+# starts clean).
+rm -f /tmp/.X0-lock /tmp/.X11-unix/X0
+
+exec "$XVNC_BIN" :0 \
+    -geometry 1280x720 \
+    -depth 24 \
+    -SecurityTypes None \
+    -localhost no \
+    -rfbport 5900 \
+    -AlwaysShared \
+    -dpi "$DPI" \
+    -AcceptSetDesktopSize

@@ -1,0 +1,51 @@
+# Core (minbase additions) — installed before rootfs-finalize.sh
+# dpkg nodoc excludes are configured BEFORE this list (see build scripts).
+
+# --- init / systemd ---
+systemd-sysv
+# --- shell & basics ---
+procps
+less
+nano
+vim-tiny
+sudo
+ca-certificates
+curl
+wget
+openssl
+# --- network ---
+iproute2
+iputils-ping
+isc-dhcp-client
+openssh-client
+dropbear                 # guest SSH on :22 (host side forwards 9922)
+# --- storage / fs ---
+util-linux
+kmod
+e2fsprogs
+libcap2-bin              # setcap for newuidmap/newgidmap
+# --- containers (mirrors upstream Alpine set) ---
+podman
+docker.io
+docker-compose-v2
+lxc
+lxc-utils
+crun
+netavark
+aardvark-dns
+slirp4netns
+fuse-overlayfs
+uidmap                   # shadow-uidmap equivalent
+iptables
+nftables
+bridge-utils
+dnsmasq                  # used by lxc-net for lxcbr0 (10.0.3.1/24 + NAT + DHCP)
+# --- X11 / audio (podroid-x11 contract: Xvnc :5900, pulseaudio TCP 4713) ---
+tigervnc-standalone-server
+tigervnc-common
+pulseaudio
+pulseaudio-utils
+xfonts-base
+fonts-dejavu-core
+dbus
+dbus-x11

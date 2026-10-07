@@ -1,0 +1,2 @@
+# native binaries are built from the sibling Podroid checkout (not vendored)
+staged/

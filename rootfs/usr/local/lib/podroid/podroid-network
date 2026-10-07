@@ -1,0 +1,143 @@
+#!/bin/sh
+# Podroid VM networking — port of upstream openrc podroid-network.
+# QEMU/SLIRP branch: static 10.0.2.15 + qemu_resolv_conf (verbatim, including
+# the cmdline injection guard). AVF branch: busybox udhcpc -> dhclient.
+#
+# Contract markers written to /dev/console: "Configuring containers...", "DNS: ...",
+# "Network found". Kept byte-for-byte (BootStageDetector/build-all.sh).
+#
+# The function definitions below are loadable by tests/test_dns.sh (source the
+# file; main() only runs when executed directly).
+set -u
+CONSOLE=/dev/console
+
+# Validate only plain dotted-quad IPv4 literals before they reach resolv.conf.
+is_valid_ipv4() {
+    case "$1" in
+        ''|*[!0-9.]*|.*|*.|*..*) return 1 ;;
+    esac
+    _old_ifs=$IFS
+    IFS=.
+    # shellcheck disable=SC2086
+    set -- $1
+    IFS=$_old_ifs
+    [ "$#" -eq 4 ] || return 1
+    for _octet in "$@"; do
+        case "$_octet" in ''|*[!0-9]*|0[0-9]*) return 1 ;; esac
+        [ "$_octet" -le 255 ] 2>/dev/null || return 1
+    done
+}
+
+# Print the QEMU resolver file: device resolvers first (max 2, deduped), then
+# deduplicated public fallbacks; with no valid device resolver keep the
+# original 10.0.2.3 / public fallback behavior.
+qemu_resolv_conf() {
+    _dns_raw=$1
+    DEVICE_DNS_1=""
+    DEVICE_DNS_2=""
+
+    # Reject the whole cmdline value if it contains anything outside the
+    # comma-separated dotted-quad grammar (prevents field splitting / globbing
+    # of attacker-controlled characters).
+    case "$_dns_raw" in *[!0-9.,]*) _dns_raw="" ;; esac
+    if [ -n "$_dns_raw" ]; then
+        _old_ifs=$IFS
+        IFS=,
+        # shellcheck disable=SC2086
+        set -- $_dns_raw
+        IFS=$_old_ifs
+        for _cand in "$@"; do
+            is_valid_ipv4 "$_cand" || continue
+            case "$_cand" in 127.*|0.0.0.0) continue ;; esac
+            [ "$_cand" = "$DEVICE_DNS_1" ] && continue
+            [ "$_cand" = "$DEVICE_DNS_2" ] && continue
+            if [ -z "$DEVICE_DNS_1" ]; then
+                DEVICE_DNS_1=$_cand
+            elif [ -z "$DEVICE_DNS_2" ]; then
+                DEVICE_DNS_2=$_cand
+            fi
+        done
+    fi
+
+    if [ -z "$DEVICE_DNS_1" ]; then
+        printf 'nameserver 10.0.2.3\nnameserver 8.8.8.8\nnameserver 1.1.1.1\n'
+        return
+    fi
+
+    printf 'nameserver %s\n' "$DEVICE_DNS_1"
+    _resolver_count=1
+    if [ -n "$DEVICE_DNS_2" ]; then
+        printf 'nameserver %s\n' "$DEVICE_DNS_2"
+        _resolver_count=2
+    fi
+    if [ "$_resolver_count" -lt 3 ] &&
+        [ "$DEVICE_DNS_1" != "8.8.8.8" ] && [ "$DEVICE_DNS_2" != "8.8.8.8" ]; then
+        printf 'nameserver 8.8.8.8\n'
+        _resolver_count=$((_resolver_count + 1))
+    fi
+    if [ "$_resolver_count" -lt 3 ] &&
+        [ "$DEVICE_DNS_1" != "1.1.1.1" ] && [ "$DEVICE_DNS_2" != "1.1.1.1" ]; then
+        printf 'nameserver 1.1.1.1\n'
+    fi
+}
+
+podroid_network_main() {
+    echo "Configuring containers..." > "$CONSOLE"
+    ip link set lo up 2>/dev/null
+
+    NETIF=""
+    for _i in $(seq 1 10); do
+        # Exclude virtual/bridge devices so the real virtio NIC is picked.
+        NETIF=$(ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | \
+            grep -vE '^(lo|dummy[0-9]*|veth|podman|cni|docker|lxcbr|br-)' | head -1)
+        [ -n "$NETIF" ] && break
+        sleep 0.05
+    done
+    if [ -z "$NETIF" ]; then
+        echo "podroid-network: no network interface" >&2
+        return 1
+    fi
+    ip link set "$NETIF" up
+
+    if grep -q 'podroid\.backend=avf' /proc/cmdline 2>/dev/null; then
+        # AVF: Android's tethering stack runs DHCP on the TAP. dhclient (Debian)
+        # replaces busybox udhcpc; -1 + timeout keeps upstream's bounded retry
+        # semantics so a dead DHCP doesn't hang boot forever.
+        mkdir -p /var/lib/dhcp 2>/dev/null
+        timeout 15 dhclient -4 -1 -pf /run/dhclient."$NETIF".pid "$NETIF" 2>/dev/null || true
+        [ -s /etc/resolv.conf ] || printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > /etc/resolv.conf
+        # Surface a total DHCP failure instead of letting SSH/apk die silently.
+        if ! ip -o -4 addr show dev "$NETIF" 2>/dev/null | grep -q 'inet '; then
+            echo "podroid-network: DHCP did not assign an address to $NETIF" >&2
+            return 1
+        fi
+    else
+        # QEMU/SLIRP: hardcode (faster + matches every existing setup).
+        ip addr add 10.0.2.15/24 dev "$NETIF" 2>/dev/null
+        ip route add default via 10.0.2.2 dev "$NETIF" 2>/dev/null
+        # SLIRP's 10.0.2.3 forwarder is dead on Android; QemuEngine passes the
+        # device's resolvers via podroid.dns=.
+        DNS_RAW=$(sed -n 's/.*podroid\.dns=\([0-9.,]*\).*/\1/p' /proc/cmdline 2>/dev/null)
+        qemu_resolv_conf "$DNS_RAW" > /etc/resolv.conf
+        DNS_SERVERS=$(awk '$1 == "nameserver" { if (dns != "") dns = dns " "; dns = dns $2 } END { print dns }' /etc/resolv.conf)
+        echo "DNS: $DNS_SERVERS" > "$CONSOLE"
+        if ! ip -o -4 addr show dev "$NETIF" 2>/dev/null | grep -q 'inet '; then
+            echo "podroid-network: static IP did not stick on $NETIF" >&2
+            return 1
+        fi
+    fi
+
+    # Optional bandwidth cap (podroid.bandwidth=<mbit> from the Android app).
+    BW_MBIT=$(sed -n 's/.*podroid\.bandwidth=\([0-9]*\).*/\1/p' /proc/cmdline 2>/dev/null)
+    if [ -n "$BW_MBIT" ] && [ "$BW_MBIT" -gt 0 ]; then
+        tc qdisc replace dev "$NETIF" root tbf rate "${BW_MBIT}mbit" burst 32kbit latency 400ms 2>/dev/null || true
+    fi
+
+    echo "Network found" > "$CONSOLE"
+    return 0
+}
+
+# Sourcing (tests) must not start anything.
+case "${0##*/}" in
+    podroid-network) podroid_network_main "$@" || exit $? ;;
+esac
