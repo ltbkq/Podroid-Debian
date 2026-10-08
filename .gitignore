@@ -8,3 +8,6 @@ native/staged/
 *.swp
 .DS_Store
 keys/
+
+# generated test fixtures (recreate: tests/gen-vectors.sh)
+tests/data/
