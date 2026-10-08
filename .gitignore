@@ -1,6 +1,7 @@
 # build outputs
 out/
 work/
+work-minimal/
 native/staged/
 *.squashfs
 

@@ -1,0 +1,60 @@
+# build/packages-minimal.list — 首发 debian.img（最小化）顶层包集合
+#   权威依据：DESIGN.md §4.5（启动契约 + 首发明确不装清单）、§4.8（账户/SSH）
+#   安装方式：build/local-rootfs-minimal.sh → apt-get install --no-install-recommends
+#   只写顶层包名，依赖闭包由 apt 解析；行尾 `#` 注释在构建脚本里被剥离。
+#
+# ★ 收敛原则：**只装 §4.5 明确要求"必须保留"的包 + 契约脚本真正调用的工具**，
+#   其余一律不在首发镜像内（用户在 guest 里 apt install 即可）。
+#   这样依赖闭包 = 260 包，正好压住 §13.1 的硬上限 ≤260（CI 断言）。
+#
+# 必须保留（§4.5 启动契约）：systemd-sysv / dbus / dropbear / iproute2 /
+#   isc-dhcp-client / util-linux / mount / sudo / ca-certificates / locales(min) /
+#   tigervnc-standalone-server / tigervnc-common / xfonts-base / fonts-dejavu-core /
+#   dbus-x11 / pulseaudio / pulseaudio-utils
+#   （/usr/local/lib/podroid/* 与 /usr/local/bin/podroid-* 来自 rootfs/ overlay + native/staged；
+#     procps 供 podroid-ready 的 pgrep OOM 保护使用）
+#
+# 必须不装（§4.5 负面断言）：docker.io podman lxc crun netavark aardvark-dns
+#   桌面环境（xfce4 lightdm x11-utils）。iptables/nftables/bridge-utils/dnsmasq
+#   也一并去掉：它们只为 lxc-net/docker 服务，podroid-network（ip/tc/dhclient）不依赖。
+#
+# 相比全量构建另外**不装**（非 §4.5 要求，按"其余功能按需后加"处理）：
+#   curl wget iputils-ping openssh-client e2fsprogs libcap2-bin less nano vim-tiny
+#   （已 grep 确认 rootfs/ 与 native/ 三件二进制均不调用这些命令；
+#     initrd 内自带 e2fsck/mkfs.ext4 —— DESIGN §11.4 引用的 APK initrd 资产）
+# 不装 kmod：§4.5 未列；镜像内**永远没有 /lib/modules**（内核是 APK 资产、
+#   builtin_only=true，Debian 侧从不装 linux-image），且本镜像不含 udev/udevd
+#   （Debian systemd 的 udev 是独立包，未安装），podroid-bootstrap 的
+#   `depmod/modprobe ... 2>/dev/null || true` 已按"无模块"假设静默容错。
+#   装上 kmod 闭包会变成 262 包 → 超过 §13.1 硬上限 260。
+
+# --- init / systemd ---
+systemd-sysv
+dbus
+
+# --- shell & 基本可用性（§4.5: sudo, ca-certificates, locales(min)）---
+procps                      # podroid-ready 用 pgrep 做 OOM 保护
+sudo
+ca-certificates
+# locales(min)：**不装 locales 包** —— 与全量基线一致（dpkg -l locales = un，
+#   /etc/default/locale 不存在，可用 locale 只有 glibc 内置 C.UTF-8），
+#   即"locale 保持最小"的字面实现。装 locales 包会让闭包变成 261 包，
+#   越过 §13.1 硬上限 260；两处规格冲突时按硬上限取（见 finalize-minimal.sh 日志）。
+
+# --- 网络（§4.5: iproute2, isc-dhcp-client → podroid-network）---
+iproute2                    # ip + tc（podroid.bandwidth=）
+isc-dhcp-client             # dhclient（AVF 分支）
+dropbear                    # guest SSH :22（宿主 9922 → guest 22）
+
+# --- 存储 / 挂载（§4.5: util-linux, mount）---
+util-linux
+mount
+
+# --- X11 / 音频（§4.5 契约单元：Xvnc :5900、pulseaudio :4713）---
+tigervnc-standalone-server
+tigervnc-common
+xfonts-base
+fonts-dejavu-core
+dbus-x11
+pulseaudio
+pulseaudio-utils

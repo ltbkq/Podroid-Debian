@@ -94,4 +94,23 @@ mountpoint -q /var/lib/containers/storage \
 mkdir -p /mnt/persist/lxc /var/lib/lxc 2>/dev/null
 mountpoint -q /var/lib/lxc || mount --bind /mnt/persist/lxc /var/lib/lxc
 
+# ==== VMDroid 新增（M2 / DESIGN §4.8 第 5、9 条，2026-10-08）=================
+# 镜像构建期已执行 `rm -f /etc/dropbear/dropbear_*_host_key*`，所以公开分发的
+# .img 不携带任何私钥（R1: B-R1-2 / R2: B-R2-4）。此处为首启生成点：/etc 走
+# overlay → copy-up 到 persist，生成一次后跨重启保留，且每个用户的密钥独立。
+# 不采用 dropbear -R 分支（§4.8 定案）。幂等：文件已存在且非空则跳过。
+# 本段只追加，未改动上方任何既有行；dropbear.service 已在
+# dropbear.service.d/podroid.conf 中 After=podroid-bootstrap.service，先于 SSH 起。
+if [ -d /etc/dropbear ] && command -v dropbearkey >/dev/null 2>&1; then
+    if [ ! -s /etc/dropbear/dropbear_ed25519_host_key ]; then
+        dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key \
+            >/dev/null 2>&1 || echo "podroid-bootstrap: dropbearkey ed25519 failed" >&2
+    fi
+    if [ ! -s /etc/dropbear/dropbear_rsa_host_key ]; then
+        dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key \
+            >/dev/null 2>&1 || echo "podroid-bootstrap: dropbearkey rsa failed" >&2
+    fi
+fi
+# ==== VMDroid 新增结束 ======================================================
+
 exit 0
