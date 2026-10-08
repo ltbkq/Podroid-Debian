@@ -12,7 +12,9 @@ provides a **systemd-based Debian rootfs** that plugs into that same pipeline, s
 APK-side code (QemuEngine / AvfEngine / BootStageDetector / host bridge) needs **zero
 changes**.
 
-> Status: **Phases 2–4 done** (build, graft, on-device install). See [docs/PLAN.md](docs/PLAN.md).
+> Status: **Phases 2–4 done** (build, on-device install). `graft.sh` is **abolished**
+> per `DESIGN.md §11.2`: systems ship as standalone `.img` files, the APK no longer
+> bundles a rootfs. See [docs/PLAN.md](docs/PLAN.md).
 
 ## Why Debian (and not "Linux Mint")
 
@@ -37,7 +39,7 @@ rootfs/         overlay copied verbatim into the image
   usr/local/lib/podroid/  ported bring-up scripts (start logic kept verbatim)
   usr/local/bin/       getty/login/resize helpers (same contract as upstream)
 tests/          regression tests (DNS resolver ordering, ported from upstream)
-tools/          graft.sh (install into a Podroid checkout), boot-test.sh (adb)
+tools/          mkimg.sh (pack/verify .img), catalog.sh, pc-boot-smoke.sh, boot-test.sh (adb smoke)
 docs/           PLAN / COMPAT / DELTAS
 native/         staged aarch64 binaries (hostd, vsock-agent, overlay-normalize)
 ```
@@ -52,23 +54,31 @@ native/         staged aarch64 binaries (hostd, vsock-agent, overlay-normalize)
 ./build/build-rootfs.sh
 #    -> out/debian-rootfs.squashfs
 
-# 3. install into a Podroid checkout (legacy asset name is intentional)
-./tools/graft.sh /path/to/Podroid
+# 3. pack the .img (R-16 requires the kernel/initrd payload inside; DESIGN §2/§6)
+tools/mkimg.sh --rootfs out/debian-rootfs.squashfs --manifest <manifest.json> \
+               --kernel <vmlinuz> --initrd <initrd.img> -o out/debian.img
+#    note: graft.sh is ABOLISHED per DESIGN §11.2 (the APK no longer bundles a
+#    rootfs; systems are distributed as standalone .img files)
 
-# 4. in the Podroid app: Settings -> Reset VM  (IMPORTANT on upgrades: wipes the old overlay upper)
-# 5. rebuild + install the APK, start the VM
-./build-all.sh apk deploy   # inside the Podroid checkout
-./tools/boot-test.sh        # adb smoke test: poll console.log for "Ready!"
+# 4. import the .img into the app (setup/images page "import from file" or
+#    catalog download), activate it via the Home boot-image selector (§8.2), start
+
+# 5. adb smoke test: poll console.log for "Ready!" (script builds its own
+#    adb forward tcp:9922)
+./tools/boot-test.sh                      # PKG defaults to io.github.ltbkq.vmdroid.debug
+./tools/boot-test.sh <other.pkg.debug>    # or pass the package name as $1
 ```
 
-## Default credentials
+## Default credentials (DESIGN §4.8)
 
 | user | password |
 |------|----------|
 | `root` | **`123`** |
+| `ltbkq` | **`123`** (passwordless sudo) |
 
 ```sh
 adb forward tcp:9922 tcp:9922
+ssh ltbkq@localhost -p 9922       # password: 123
 ssh root@localhost -p 9922        # password: 123
 ```
 

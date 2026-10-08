@@ -110,6 +110,6 @@ esac
 echo
 echo "OK: $OUT/debian-rootfs.squashfs ($(du -h "$OUT/debian-rootfs.squashfs" 2>/dev/null | cut -f1))"
 echo "Next:"
-echo "  ./tools/graft.sh /path/to/Podroid     # install into the APK assets"
-echo "  In the Podroid app: Settings -> Reset VM   (wipe Alpine overlay upper)"
-echo "  Then rebuild the APK: ./build-all.sh apk   (in the Podroid checkout)"
+echo "  tools/mkimg.sh --rootfs $OUT/debian-rootfs.squashfs --manifest <manifest.json> \\"
+echo "                  --kernel <vmlinuz> --initrd <initrd.img> -o out/debian.img  # DESIGN §2"
+echo "  graft.sh is ABOLISHED (DESIGN §11.2): import/download the .img into the app instead"

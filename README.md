@@ -11,8 +11,9 @@ lower + ext4 upper overlay，然后 `switch_root` 进入 `/sbin/init`。本项�
 systemd 的 Debian rootfs**，接入完全相同的启动流水线，APK 侧代码（QemuEngine /
 AvfEngine / BootStageDetector / host bridge）**零改动**。
 
-> 进度：**Phase 2–4 已完成**（构建环境、squashfs 构建、graft、真机安装运行），
-> 详见 [docs/PLAN.md](docs/PLAN.md)。
+> 进度：**Phase 2–4 已完成**（构建环境、squashfs 构建、真机安装运行）。
+> `graft.sh` 已按 `DESIGN.md §11.2` **废除**：N4 后系统以独立 `.img` 分发，
+> APK 不再内置 rootfs。更多见 [docs/PLAN.md](docs/PLAN.md)。
 
 ## 为什么选 Debian（而不是 "Linux Mint"）
 
@@ -37,7 +38,7 @@ rootfs/         原样拷入镜像的 overlay
   usr/local/lib/podroid/  移植的启动脚本（启动逻辑逐行保留）
   usr/local/bin/       getty/login/resize 辅助（契约与上游一致）
 tests/          回归测试（DNS 解析顺序，移植自上游）
-tools/          graft.sh（装入 Podroid 检出目录）、boot-test.sh（adb 冒烟）
+tools/          mkimg.sh（打包/校验 .img）、catalog.sh、pc-boot-smoke.sh、boot-test.sh（adb 冒烟）
 docs/           PLAN / COMPAT / DELTAS
 native/         交叉编译产物（hostd、vsock-agent、overlay-normalize，aarch64 静态）
 ```
@@ -52,23 +53,29 @@ native/         交叉编译产物（hostd、vsock-agent、overlay-normalize，a
 ./build/build-rootfs.sh
 #    -> out/debian-rootfs.squashfs
 
-# 3. 装入 Podroid 检出目录（沿用历史资产名是有意为之）
-./tools/graft.sh /path/to/Podroid
+# 3. 打包 .img（R-16 要求自带 kernel/initrd payload；DESIGN §2/§6）
+tools/mkimg.sh --rootfs out/debian-rootfs.squashfs --manifest <manifest.json> \
+               --kernel <vmlinuz> --initrd <initrd.img> -o out/debian.img
+#    注：graft.sh 已按 DESIGN §11.2 废除（APK 不再内置 rootfs，系统以 .img 分发）
 
-# 4. 在 Podroid app 中：Settings -> Reset VM（升级场景必须：清掉旧 overlay upper）
-# 5. 重打 APK 并安装，启动 VM
-./build-all.sh apk deploy   # 在 Podroid 检出目录内执行
-./tools/boot-test.sh        # adb 冒烟测试：轮询 console.log 中的 "Ready!"
+# 4. 把 .img 导入 App（引导页/镜像页"从文件导入"或 catalog 下载），
+#    在 Home 启动镜像选择控件（DESIGN §8.2）激活后启动
+
+# 5. adb 冒烟测试：轮询 console.log 中的 "Ready!"（脚本自建 adb forward tcp:9922）
+./tools/boot-test.sh                      # 默认 PKG=io.github.ltbkq.vmdroid.debug
+./tools/boot-test.sh <other.pkg.debug>    # 或位置参数指定其他包名
 ```
 
-## 默认凭据
+## 默认凭据（DESIGN §4.8）
 
 | 用户 | 密码 |
 |------|------|
 | `root` | **`123`** |
+| `ltbkq` | **`123`**（免密 sudo） |
 
 ```sh
 adb forward tcp:9922 tcp:9922
+ssh ltbkq@localhost -p 9922       # 密码：123
 ssh root@localhost -p 9922        # 密码：123
 ```
 

@@ -14,7 +14,7 @@ storage layout).
 | 1 | Project scaffolding (build scripts, units, ported bring-up scripts, docs) | done | - |
 | 2 | Build environment on the dev machine | done | local debootstrap path (`qemu-user-static` + binfmt + root; no docker needed) |
 | 3 | First successful `out/debian-rootfs.squashfs` build | done | 284M, zstd-19, trixie + 283 pkgs, 12 systemd units enabled |
-| 4 | Graft + boot test on device (QEMU backend, console `Ready!`) | graft done | boot test: install `app-release.apk` (uninstall old pkg first) → Reset VM → `./tools/boot-test.sh` |
+| 4 | Graft + boot test on device (QEMU backend, console `Ready!`) | graft **abolished** (DESIGN §11.2 — N4: systems ship as standalone `.img`, APK no longer bundles rootfs) | boot test: install the debug APK → import/activate a `.img` → `./tools/boot-test.sh` (PKG parameterized: `$1` defaults to `io.github.ltbkq.vmdroid.debug`) |
 | 5 | Service verification pass (dropbear/9922, hostd, resize, x11, containers) | pending | Phase 4 |
 | 6 | AVF backend verification (vsock agent, downloads 9p, port forwards) | pending | a pKVM device |
 | 7 | Hardening: rootfs-identity guard (auto-wipe upper on distro switch), desktop profile | pending | Phase 5 |
