@@ -242,32 +242,54 @@ else
     REL="$TMP/release"
     mkdir -p "$REL"
     cp "$OUT_IMG" "$REL/debian.img"
+    # 期望值从被测 .img 内嵌 manifest 派生（footer+72/80 → manifest 段 → image.*）。
+    # --quick 跳过 §2 构建，fixture 是真实产物（可为 full / system_version=33）；
+    # 非 --quick 则用 manifest-valid.json 构建（minimal / 34）。写死首发口径会让
+    # --quick 模式恒红（fixture 与断言不匹配），故改为断言"catalog 忠实转译 manifest"
+    # —— image.id/identity/variant/system_version/arch 逐字段 == 源 .img，
+    # channel/app_min_version_code 仍为契约固定值，url = base-url 原样拼接（catalog.sh:194）。
+    python3 - "$OUT_IMG" > "$TMP/img-fields.txt" 2>/dev/null <<'PY' || true
+import struct, json, sys
+f = open(sys.argv[1], "rb")
+f.seek(-4096, 2); ft = f.read(4096)
+m_off, m_size = struct.unpack("<Q", ft[72:80])[0], struct.unpack("<Q", ft[80:88])[0]
+f.seek(m_off)
+img = json.loads(f.read(m_size).decode("utf-8"))["image"]
+for k in ("id", "identity", "variant", "system_version", "arch"):
+    print(img[k])
+PY
+    IMG_ID= IMG_IDENT= IMG_VAR= IMG_SYSVER= IMG_ARCH=
+    { read -r IMG_ID || true; read -r IMG_IDENT || true; read -r IMG_VAR || true
+      read -r IMG_SYSVER || true; read -r IMG_ARCH || true; } < "$TMP/img-fields.txt"
+    BASE_URL="https://github.com/ltbkq/Podroid-Debian/releases/download/v${IMG_SYSVER}"
     openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 \
         -out "$TMP/catalog.key" 2>/dev/null
     if "$CATALOG" --release-dir "$REL" \
-                  --base-url "https://github.com/ltbkq/Podroid-Debian/releases/download/v34" \
+                  --base-url "$BASE_URL" \
                   --sign-key "$TMP/catalog.key" \
                   -o "$REL/catalog.json" -o "$REL/catalog.json.sig" \
                   >"$TMP/cat.log" 2>&1; then
-        t_ok "catalog.sh 生成 + 签名 + 自校验"
+        t_ok "catalog.sh 生成 + 签名 + 自校验（base-url=v${IMG_SYSVER:-?}）"
         sed 's/^/    /' "$TMP/cat.log"
     else
         sed 's/^/    /' "$TMP/cat.log"
         t_fail "catalog.sh"
     fi
-    # schema 断言（DESIGN §6.1 + R-05 首发口径）
-    jq -e '.schema == 1 and (.generated_at | type == "string")
-           and (.images | length == 1)
-           and (.images[0].image_id == "debian-minimal-arm64")
-           and (.images[0].identity == "debian:trixie")
-           and (.images[0].variant == "minimal")
-           and (.images[0].system_version == 34)
-           and (.images[0].arch == "arm64")
-           and (.images[0].channel == "stable")
-           and (.images[0].app_min_version_code == 1)
-           and (.images[0].url == "https://github.com/ltbkq/Podroid-Debian/releases/download/v34/debian.img")' \
+    jq -e --arg id "$IMG_ID" --arg ident "$IMG_IDENT" --arg var "$IMG_VAR" \
+         --argjson sysv "${IMG_SYSVER:-0}" --arg arch "$IMG_ARCH" \
+         --arg base "$BASE_URL" '
+       .schema == 1 and (.generated_at | type == "string")
+       and (.images | length == 1)
+       and (.images[0].image_id == $id)
+       and (.images[0].identity == $ident)
+       and (.images[0].variant == $var)
+       and (.images[0].system_version == $sysv)
+       and (.images[0].arch == $arch)
+       and (.images[0].channel == "stable")
+       and (.images[0].app_min_version_code == 1)
+       and (.images[0].url == ($base + "/debian.img"))' \
         "$REL/catalog.json" >/dev/null \
-        && t_ok "catalog schema 字段（§6.1 表 + R-05 长度=1）" \
+        && t_ok "catalog schema 字段（§6.1 表；逐字段 == 被测 .img manifest）" \
         || t_fail "catalog schema 字段"
     CSIZE=$(stat -c%s "$REL/debian.img")
     CSHA=$(sha256sum "$REL/debian.img" | cut -d' ' -f1)
