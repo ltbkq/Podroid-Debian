@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "generated_at": "2026-10-07T12:00:00Z",
+  "images": [
+    {
+      "image_id": "debian-minimal-arm64",
+      "version": "2026.10.0-r1",
+      "system_version": 34,
+      "arch": "arm64"
+    }
+  ]
+}

@@ -350,8 +350,22 @@ else
     t_fail "冒烟守卫 rc=$rc（期望 3）"
 fi
 
+# --------------------------------------------------------------- 11. 向量确定性守卫
+sec "11. 向量确定性守卫（IMP-T02：连跑两遍 gen-vectors 必须字节不变）"
+GENV="$TESTS_DIR/gen-vectors.sh"
+V1="$TMP/det-v1.sha"; V2="$TMP/det-v2.sha"
+"$GENV" >/dev/null 2>&1 && sha256sum "$VECJSON" | cut -d' ' -f1 > "$V1" \
+    || die "第一遍 gen-vectors.sh 失败"
+"$GENV" >/dev/null 2>&1 && sha256sum "$VECJSON" | cut -d' ' -f1 > "$V2" \
+    || die "第二遍 gen-vectors.sh 失败"
+if cmp -s "$V1" "$V2"; then
+    t_ok "gen-vectors 两遍输出字节一致（sha256=$(cat "$V1")）"
+else
+    t_fail "gen-vectors 两遍输出不一致（$(cat "$V1") vs $(cat "$V2")）→ 向量非确定性"
+fi
+
 if [ "${RUN_SMOKE_DEMO:-0}" = "1" ]; then
-    sec "11. pc-boot-smoke 真实管线演示（假内核，预期 boot 失败；验证 imgboot 集成）"
+    sec "12. pc-boot-smoke 真实管线演示（假内核，预期 boot 失败；验证 imgboot 集成）"
     set +e
     BOOT_TIMEOUT=8 "$SMOKE" --timeout 8 "$OUT_IMG" >"$TMP/smoke-demo.log" 2>&1
     rc=$?

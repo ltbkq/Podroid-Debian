@@ -63,7 +63,15 @@ mkdir -p "$SQSRC/etc" "$SQSRC/usr/local/bin" "$SQSRC/etc/dropbear"
 printf 'root:x:0:0:root:/root:/bin/bash\nltbkq:x:1000:1000::/home/ltbkq:/bin/bash\n' > "$SQSRC/etc/passwd"
 printf 'vmdroid test rootfs (vectors) — IMAGE-FORMAT §8 bare-squashfs vector\n' \
     > "$SQSRC/etc/issue"
-head -c 8192 /dev/urandom > "$SQSRC/usr/local/bin/payload"
+# 确定性 payload（IMP-T02：/dev/urandom 使 rootfs_sha256/file_sha256 每次重跑全变，
+# 测试向量失去回归价值）。用 SHA-256 链生成不可压缩的确定性字节：跨 Python 版本
+# 稳定、且不会被 zstd 压成 4 KiB 导致"bare squashfs too small"。
+python3 - "$SQSRC/usr/local/bin/payload" <<'PY'
+import hashlib, sys
+chunks = [hashlib.sha256(("vmdroid-vector-payload:%d" % i).encode()).digest()
+          for i in range((8192 + 31) // 32)]
+open(sys.argv[1], "wb").write(b"".join(chunks)[:8192])
+PY
 chmod 755 "$SQSRC/usr/local/bin/payload"
 mksquashfs "$SQSRC" "$BARE" -comp zstd -noappend -no-xattrs -no-progress -quiet \
     -mkfs-time 0 -all-time 0 -processors 1 >/dev/null
@@ -191,17 +199,28 @@ done
 rm -f "$IMGD/.should-not-exist.img"
 
 # ------------------------------------------- 5. derive negatives + expectations
-if [ ! -f "$DATA/catalog-signature.key" ]; then
-    note "4c/5 catalog signature test key (ECDSA P-256, TEST VECTOR ONLY)"
-    openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 \
-        -out "$DATA/catalog-signature.key" 2>/dev/null || die "openssl genpkey failed"
-fi
+# catalog 签名测试向量：固定 key/message/sig 已提交（tests/vectors/catalog-test-*）。
+# IMP-T02：openssl ECDSA 每次用随机 nonce，签名无法逐字节复现 → 签一次冻结入库，
+# 之后每次生成只读取不重签，保证 vectors.json 字节级确定性。
+VECDIR="$TESTS_DIR/vectors"
+KEY_PEM="$VECDIR/catalog-test-key.pem"
+SIG_B64="$VECDIR/catalog-test-sig.b64"
+MSG_TXT="$VECDIR/catalog-test-message.txt"
+for f in "$KEY_PEM" "$SIG_B64" "$MSG_TXT"; do
+    [ -f "$f" ] || die "missing committed signature vector: $f"
+done
+# 自检：冻结的签名必须能验证过冻结的 message + key（防提交时被改坏）
+openssl dgst -sha256 -verify \
+    <(openssl pkey -in "$KEY_PEM" -pubout) \
+    -signature <(openssl base64 -A -d < "$SIG_B64") \
+    "$MSG_TXT" >/dev/null 2>&1 || die "committed catalog-test-sig.b64 does not verify"
+note "4c/5 catalog signature vectors (fixed, committed): $KEY_PEM"
 
 note "5/5 deriving negative vectors and writing $(basename "$VECJSON")"
-python3 - "$DATA" "$IMGD" "$VECJSON" "$NEG_TSV" <<'PY'
+python3 - "$DATA" "$IMGD" "$VECJSON" "$NEG_TSV" "$VECDIR" <<'PY'
 import hashlib, json, os, struct, sys
 
-DATA, IMGD, VECJSON, NEGT = sys.argv[1:5]
+DATA, IMGD, VECJSON, NEGT, VECDIR = sys.argv[1:6]
 MAGIC = b"VMDIMG01"
 FOOTER = 4096
 MIB = 1 << 20
@@ -562,24 +581,12 @@ write_sparse(os.path.join(IMGD, "app-too-old.img"), b)
 vectors.append(v)
 
 # ---------------------------------------------- catalog signature vectors ---
-key = os.path.join(DATA, "catalog-signature.key")
-if not os.path.exists(key):
-    raise SystemExit("gen-vectors: missing %s (openssl step must run first)" % key)
-message = json.dumps({
-    "schema": 1,
-    "generated_at": "2026-10-07T12:00:00Z",
-    "images": [{"image_id": "debian-minimal-arm64", "version": "2026.10.0-r1",
-                "system_version": 34, "arch": "arm64"}],
-}, ensure_ascii=False, indent=2) + "\n"
-msg_path = os.path.join(DATA, "catalog-signature.message.txt")
-with open(msg_path, "w", encoding="utf-8") as f:
-    f.write(message)
+# 固定签名向量（IMP-T02）：key/message/sig 已提交在 tests/vectors/，只读不重签。
+# （openssl ECDSA 每次随机 nonce → 重签会破坏 vectors.json 字节级确定性。）
 import subprocess
-sig = subprocess.run(
-    ["openssl", "dgst", "-sha256", "-sign", key, msg_path],
-    check=True, capture_output=True).stdout
-sig_b64 = subprocess.run(["openssl", "base64", "-A"], input=sig,
-                         check=True, capture_output=True).stdout.decode()
+key = os.path.join(VECDIR, "catalog-test-key.pem")
+message = open(os.path.join(VECDIR, "catalog-test-message.txt"), encoding="utf-8").read()
+sig_b64 = open(os.path.join(VECDIR, "catalog-test-sig.b64"), encoding="utf-8").read().strip()
 pub = subprocess.run(["openssl", "pkey", "-in", key, "-pubout"],
                      check=True, capture_output=True).stdout.decode()
 
@@ -620,7 +627,7 @@ doc = {
         "public_key_pem": pub,
         "private_key_pem": open(key, encoding="utf-8").read(),
         "private_key_warning": "TEST VECTOR KEY ONLY — 绝不可用于真实发布（CI secret）",
-        "message_path": "../data/catalog-signature.message.txt",
+        "message_path": "catalog-test-message.txt",
         "message": message,
         "message_sha256": sha(message.encode()),
         "signature_b64": sig_b64,

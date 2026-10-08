@@ -260,13 +260,13 @@
   "catalog_signature": {
     "algorithm": "ECDSA P-256 + SHA-256 (openssl dgst -sha256 -sign), signature = base64(DER)，detached — DESIGN §6.1",
     "android": "Signature(\"SHA256withECDSA\") + Base64.getDecoder()（非 MIME）",
-    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEELdfirmWRJ5xx9ORU7B2M8guau5B\nncxOkto6PeTXW49LBBPE6g/LdGCeVtHOfpzrCorSCHjWSeTd89SDm8KcRw==\n-----END PUBLIC KEY-----\n",
-    "private_key_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQguclTl5zBAQStAn62\n3JszAPEHD4t320wF9AJbU3MB+TehRANCAAQQt1+KuZZEnnHH05FTsHYzyC5q7kGd\nzE6S2jo95Ndbj0sEE8TqD8t0YJ5W0c5+nOsKitIIeNZJ5N3z1IObwpxH\n-----END PRIVATE KEY-----\n",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEkrrrm5tONgqA2vka3xStoIOwQPPF\n3Cv1wmVFnbySYBNY7lU+N1uKDvhOJfFAxgTjFe9PKAfpoZf7Hv7nVQ2ROQ==\n-----END PUBLIC KEY-----\n",
+    "private_key_pem": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQggSwqHSXJjkTzEcWM\nj0PqgrN2eTpMJcFvLQQZS0ryahKhRANCAASSuuubm042CoDa+RrfFK2gg7BA88Xc\nK/XCZUWdvJJgE1juVT43W4oO+E4l8UDGBOMV708oB+mhl/se/udVDZE5\n-----END PRIVATE KEY-----\n",
     "private_key_warning": "TEST VECTOR KEY ONLY — 绝不可用于真实发布（CI secret）",
-    "message_path": "../data/catalog-signature.message.txt",
+    "message_path": "catalog-test-message.txt",
     "message": "{\n  \"schema\": 1,\n  \"generated_at\": \"2026-10-07T12:00:00Z\",\n  \"images\": [\n    {\n      \"image_id\": \"debian-minimal-arm64\",\n      \"version\": \"2026.10.0-r1\",\n      \"system_version\": 34,\n      \"arch\": \"arm64\"\n    }\n  ]\n}\n",
     "message_sha256": "08b8303d92d21f98c8dff3cf209ad9fdac5ca5316e2d8226acf6120f7f9997d4",
-    "signature_b64": "MEUCIA+xpybRwE2wyyAdUd3viZiJA6zGf3/H68Yk9jB3zGtvAiEAlNvfL3apR30aT0L47qmqadzROpk9wMbloDZc+Z36xFY=",
+    "signature_b64": "MEQCIClbiYFIHKQmRd7CvqBjMI5I8eJXKfsIe3tsnOcqDFxQAiBQpmoxlD6WQXlLaQROfuOZuySP05xFlEBXhIL1/APakw==",
     "verify": {
       "valid_message": true,
       "tampered_message": false
@@ -280,7 +280,7 @@
       "derived_from": null,
       "patches": [],
       "size": 5251072,
-      "sha256": "418c28a9267464d6feabc13e7fab836aa8bc396ec8c8c051d5ef41dbe36a70d8",
+      "sha256": "73b53e73383be402afd94040ff9b34ada576d1db474e489f82b3d580b2ec55e5",
       "expect": {
         "result": "accept",
         "file_size": 5251072,
@@ -299,19 +299,19 @@
           "manifest": {
             "offset": 5242880,
             "size": 2024,
-            "sha256": "62514b2cc940f88c4c2d637e62d6f62b4bef844b93d2b77fc4b8311dce0db6a4"
+            "sha256": "1fd058a0e92fea2cc64d6bfa4a7e03ba9b2167b9b8eee473edf108e5a72183b2"
           },
           "rootfs": {
             "offset": 0,
             "size": 8753,
-            "sha256": "4db6c2a4cf66815a492af8f34f8e5341cfd43013018dcd06cd44432f10d5f4f6"
+            "sha256": "0cebf4f387023096b050bea1e524b758d927c650a52f6f7951b71d3eac3a26cb"
           },
           "footer": {
             "offset": 5246976,
             "size": 4096
           }
         },
-        "file_sha256": "418c28a9267464d6feabc13e7fab836aa8bc396ec8c8c051d5ef41dbe36a70d8",
+        "file_sha256": "73b53e73383be402afd94040ff9b34ada576d1db474e489f82b3d580b2ec55e5",
         "rule": "IMAGE-FORMAT §2 布局 + §3 footer 全字段 + §8 第1/2行",
         "description": "rootfs+kernel+initrd+manifest，flags==0x3，kernel/initrd 偏移 1 MiB 对齐且与源文件逐字节一致"
       }
@@ -322,7 +322,7 @@
       "derived_from": null,
       "patches": [],
       "size": 1056768,
-      "sha256": "a260aba7def0effdf6fcb6aa13a5230431857d699f55b3e6838dd439e4afb66f",
+      "sha256": "814f815f280626175afb03f007ce99d6f77b7fe24c24caa144685ebd9d684b67",
       "expect": {
         "result": "accept",
         "file_size": 1056768,
@@ -331,19 +331,19 @@
           "manifest": {
             "offset": 1048576,
             "size": 1756,
-            "sha256": "6cf6fc03be42abeb79982405f30d5af6b61bada314b019077480f098b1bed411"
+            "sha256": "a036481f14e17b82700258f3b1cbc8e4a1188ab6631fd8cf4dc51a54277b19ce"
           },
           "rootfs": {
             "offset": 0,
             "size": 8753,
-            "sha256": "4db6c2a4cf66815a492af8f34f8e5341cfd43013018dcd06cd44432f10d5f4f6"
+            "sha256": "0cebf4f387023096b050bea1e524b758d927c650a52f6f7951b71d3eac3a26cb"
           },
           "footer": {
             "offset": 1052672,
             "size": 4096
           }
         },
-        "file_sha256": "a260aba7def0effdf6fcb6aa13a5230431857d699f55b3e6838dd439e4afb66f",
+        "file_sha256": "814f815f280626175afb03f007ce99d6f77b7fe24c24caa144685ebd9d684b67",
         "rule": "IMAGE-FORMAT §8 第1行（合法最小镜像）",
         "description": "rootfs+manifest，无 kernel/initrd，flags==0"
       }
@@ -359,7 +359,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "8b71e2fdf668b9a127e3cb3ff19146283154b37346f9858db7e99d7791967fd0",
+      "sha256": "a7c88b94c508143b11e953ea5252b911052df2a637842090611cd9f01bfb402a",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -380,7 +380,7 @@
         }
       ],
       "size": 1056767,
-      "sha256": "13307164ef9ec8f947b5d2daf07c995c0b95963b2d6f5bc3096ed622b6861957",
+      "sha256": "e9af727f3a3440582cefcbedcc652029c5a182bb8766f741fe029f0bd3fed0b4",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -402,7 +402,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "4ca6f1daaaea0044209bcbd2e82518c3316298529345ac9c2479e1a69ac6163f",
+      "sha256": "ea539417afae9ab232b5c3ee136332653a24b0f7aed63e7735d284a31835d290",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -424,7 +424,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "b8fdb37583a885c4436fc5b764f6fdca6378e727a43366a8ebb0e716a24eb9fe",
+      "sha256": "a1a070d01828610f13e58d9d3c51b0a6e804cf33dcf2245632070ee57df09057",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -446,7 +446,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "4717b79fa396c0119917e36f71ca27328503e94abbdd5214d020df61c9054694",
+      "sha256": "a4bee1d5d6b82c6b615ddb1fac0c333c67e2cb023431856a4254a6c5fccec9a1",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -467,7 +467,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "7f20701749aef7b393d7b0d78d722f82628504d8caa6cc9fe3543d36e2ba7a0c",
+      "sha256": "65624fdc5581e99ad331fc7fdd321ff4308de19ecd75b517a6deb56bdf9767d5",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -488,7 +488,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "a28ff0e57d961053d1207b644d3f9297b443d8b986c68ef104885bbe71fded51",
+      "sha256": "396e7954a06d5e882a8e2e79a9db24a49a0e75edede9bf448a6ba556573934ab",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -509,7 +509,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "5b424b10dc7e1725296c64ac6b3771ce07922992c09f6a5e1b97137b41eae85f",
+      "sha256": "db13b838616999863d3a2648969762e727202243d6b79e53c2245f015de1f4a5",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -525,7 +525,7 @@
       "derived_from": null,
       "patches": [],
       "size": 12288,
-      "sha256": "fa7b47af0e42fb423fdf2b6beb3b7611501aeedd38fc703beb540ee2058aeca4",
+      "sha256": "4eb99971659fecb0f1485180171ca4df7ca950529031e6e88a51876f078b7826",
       "expect": {
         "result": "reject",
         "stage": "footer",
@@ -569,7 +569,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "26a32a26758501f1ef56bf554a998c68411214b724153baa26ccef320d03a9e1",
+      "sha256": "2d2811ef3bbe0e17e0251e7ded5cac47b1c3005a2739502fa055c50d6e2a9917",
       "expect": {
         "result": "reject",
         "stage": "payload",
@@ -591,7 +591,7 @@
         }
       ],
       "size": 5251072,
-      "sha256": "85682b2c82c949529a0d5fea6cd2e2d7213b4dd47b2b003f19bfda491ab0134e",
+      "sha256": "965cc7ef637c7adf513c0e79dd095d0413b4c1eed2fe287cd66d5404b02f32a0",
       "expect": {
         "result": "reject",
         "stage": "payload",
@@ -613,7 +613,7 @@
         }
       ],
       "size": 5251072,
-      "sha256": "01d69c5e709270cc9776266a3db2881934fe7cf380268258cb9dcb6ea2964125",
+      "sha256": "df0c9ac7292569fe4bcd9287dc6dd64ec8cbf066cb413f30676f7378f301e6d5",
       "expect": {
         "result": "reject",
         "stage": "payload",
@@ -634,7 +634,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "1990069c7624d17b73d30790d8a448740b8beda0f3e613d25e82d0e6b4749e3a",
+      "sha256": "469b8d23637aa6db20129e6f308b79d752dc530bd645da2dc446459c32764c1f",
       "expect": {
         "result": "reject",
         "stage": "manifest",
@@ -656,7 +656,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "2360941399ff8405bdc73526a70a9e16f9fb83d80f3b48912f9741464458fc37",
+      "sha256": "fba1386751aab11c695f1ccda4f34f2767c418f68b376788ce022d619738fce8",
       "expect": {
         "result": "reject",
         "stage": "manifest",
@@ -677,7 +677,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "ee7a7115b798fce0313285e79a7e2534c57b1b547478c576d8fa2871c3b1eae2",
+      "sha256": "3f1d4ba388b900073435c4529accb051049b60e77b7c6ff406155c1cadeb2909",
       "expect": {
         "result": "reject",
         "stage": "manifest",
@@ -698,7 +698,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "4f24909aa01646cbcdc663a516280a1c6f2d196282e97bfa199a63cf16683a2c",
+      "sha256": "c9b245f5bf34747e65c983c04de1a83c7fbfefaddbcc0709badf0c4c947e4747",
       "expect": {
         "result": "reject",
         "stage": "manifest",
@@ -719,7 +719,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "505d762c73cf65edb00c0f59c64adaaa9e5932eb2f8b2fef6bff7bcd234bef1e",
+      "sha256": "dbb71931b3b31a438b04936868047fc57dee021737a011b32670d378d8ed0847",
       "expect": {
         "result": "reject",
         "stage": "manifest",
@@ -740,7 +740,7 @@
         }
       ],
       "size": 1056768,
-      "sha256": "5e0e89999761b3228de2ba3eb9a575ddf8cd97a283ad90fd9aae40fc628649c9",
+      "sha256": "771df317864a80700af893e21f0edac52b195d3c746405056e0d9549cd88dc4d",
       "expect": {
         "result": "accept",
         "stage": "parse",
